@@ -1,0 +1,47 @@
+[package]
+name = "dope"
+# TODO: description = "..."
+version = "0.1.0"
+edition = "2024"
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/SkyyySi/dope"
+authors = [
+	"SkyyySi",
+]
+# TODO: categories = [ ... ]
+
+[lib]
+name = "dope"
+crate-type = ["cdylib"]
+
+[features]
+default = ["mlua/lua54"]
+lua54 = ["mlua/lua54"]
+lua53 = ["mlua/lua53"]
+lua52 = ["mlua/lua52"]
+lua51 = ["mlua/lua51"]
+luajit = ["mlua/luajit"]
+luajit52 = ["mlua/luajit52"]
+
+[dependencies]
+
+[dependencies.mlua]
+version = "0.10.3"
+features = [
+	"anyhow",
+	"async",
+	"macros",
+	"module",
+	"serialize",
+	"userdata-wrappers",
+]
+
+[dependencies.crossterm]
+version = "0.29.0"
+features = [
+	"event-stream",
+	"serde",
+	"osc52",
+]
+
