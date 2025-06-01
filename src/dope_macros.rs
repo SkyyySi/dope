@@ -1,39 +1,31 @@
 // SPDX-License-Identifier: MIT
 
-// TODO: Replace any use of `?` with calls to `.and_then()`.
 #[macro_export(local_inner_macros)]
 macro_rules! table {
-	(
-		$lua:ident,
-		{ $( $( $key:tt = )? $value:expr ),* $(,)? }
-		$( , { $( $( $mt_key:tt = )? $mt_value:expr ),* $(,)? } )?
-		$(,)?
-	) => {
-		{
-			let new_table: ::mlua::Table = ::mlua::Lua::create_table($lua)?;
-			let mut new_table_key_count: u32 = 0;
-			$(new_table.raw_set(($crate::table!(@parse_key, new_table_key_count $( , $key )? )), ($value))?;)*
-
-			$(
-				let new_metatable: ::mlua::Table = ::mlua::Lua::create_table($lua)?;
-				let mut new_metatable_key_count: u32 = 0;
-				$(new_metatable.raw_set(($crate::table!(@parse_key, new_metatable_key_count $( , $mt_key )? )), ($mt_value))?;)*
-				new_table.set_metatable(::core::option::Option::Some(new_metatable));
-			)?
-
-			::mlua::Result::Ok(new_table)
-		}
+	($lua:ident, $body:tt $( , $mt_body:tt )? $(,)?) => {
+		($crate::table!(@parse_body, $lua, $body))
+		$(
+			.inspect(|table| table.set_metatable(
+				($crate::table!(@parse_body, $lua, $mt_body)).ok()
+			))
+		)?
 	};
 
-	(@parse_key, $key_count:ident) => {
-		::std::stringify!($key)
+	(@parse_body, $lua:ident, { $( $key:tt = $value:expr ),* $(,)? }) => {
+		::mlua::Lua::create_table($lua)
+		$(
+			.and_then(|table| table.raw_set(
+				($crate::table!(@parse_key, $key)),
+				($value),
+			).map(|_| table))
+		)*
 	};
 
-	(@parse_key, $key_count:ident, $key:ident) => {
-		::std::stringify!($key)
-	};
-
-	(@parse_key, $key_count:ident, [ $key:expr ]) => {
+	(@parse_key, [ $key:expr ]) => {
 		$key
+	};
+
+	(@parse_key, $key:ident) => {
+		::std::stringify!($key)
 	};
 }

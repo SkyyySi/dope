@@ -6,3 +6,10 @@ assert(_VERSION == "Lua 5.4")
 --------------------------------------------------------------------------------
 
 local dope = require("dope")
+
+print(string.format("dope = %s", tostring(dope)))
+for k, v in pairs(dope) do
+	print(string.format("dope.%s = %s", tostring(k), tostring(v)))
+end
+dope.print(nil, true, 0xFFFF, 123.456, "Hello,\
+	world! 🤟🏼")
