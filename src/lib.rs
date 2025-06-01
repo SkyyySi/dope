@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 
-mod dope_macros;
+mod macros;
+mod repr;
 
 #[allow(unused_imports)]
 use std::{
@@ -17,7 +18,6 @@ use std::{
 };
 use mlua::prelude::*;
 
-#[allow(unused_variables)]
 fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaResult<String> {
 	let options: LuaTable = match maybe_options {
 		Some(tb) => tb,
@@ -26,6 +26,8 @@ fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaR
 
 	let color: bool = options.get::<Option<bool>>("color")?.unwrap_or(false);
 	let multiline: bool = options.get::<Option<bool>>("multiline")?.unwrap_or(false);
+	#[allow(unused_variables)]
+	let indent_width: u8 = options.get::<Option<u8>>("indent_width")?.unwrap_or(4u8);
 
 	Ok(match value {
 		LuaValue::Nil => if color {
@@ -39,12 +41,10 @@ fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaR
 			} else {
 				"\x1b[1;31mfalse\x1b[22;39m"
 			}
+		} else if inner {
+			"true"
 		} else {
-			if inner {
-				"true"
-			} else {
-				"false"
-			}
+			"false"
 		}.to_string(),
 		LuaValue::Integer(inner) => if color {
 			format!("\x1b[34m{inner}\x1b[39m")
@@ -86,23 +86,23 @@ fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaR
 				b"\x1b[39m".iter().for_each(|byte| buffer.push(*byte));
 			}
 
-			String::from_utf8(buffer).map_err(|err| {
+			String::from_utf8(buffer).map_err(|_| {
 				LuaError::RuntimeError("".to_string())
 			})?
 		},
-		LuaValue::Function(inner) => {
+		LuaValue::Function(_inner) => {
 			todo!("dope.repr() for functions")
 		},
-		LuaValue::Thread(inner) => {
+		LuaValue::Thread(_inner) => {
 			todo!("dope.repr() for threads")
 		},
-		LuaValue::Table(inner) => {
+		LuaValue::Table(_inner) => {
 			todo!("dope.repr() for tables")
 		},
-		LuaValue::UserData(inner) => {
+		LuaValue::UserData(_inner) => {
 			todo!("dope.repr() for userdata-objects")
 		},
-		LuaValue::LightUserData(inner) => {
+		LuaValue::LightUserData(_inner) => {
 			todo!("dope.repr() for lightuserdata-objects")
 		},
 		/* LuaValue::Error(inner) => {
@@ -117,7 +117,6 @@ fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaR
 	})
 }
 
-#[allow(unused_variables)]
 fn print(lua: &Lua, args: LuaMultiValue) -> LuaResult<()> {
 	let mut writer: Stdout = stdout();
 
@@ -131,11 +130,11 @@ fn print(lua: &Lua, args: LuaMultiValue) -> LuaResult<()> {
 		write!(writer, "{}", repr(lua, (value.to_owned(), options.to_owned()))?)?;
 
 		if (i + 1) < length {
-			writer.write(&[b' '])?;
+			write!(writer, " ")?;
 		}
 	}
 
-	writer.write(&[b'\n'])?;
+	assert!(writer.write(b"\n")? > 0);
 	writer.flush()?;
 
 	Ok(())
