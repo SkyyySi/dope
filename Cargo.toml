@@ -25,6 +25,7 @@ luajit = ["mlua/luajit"]
 luajit52 = ["mlua/luajit52"]
 
 [dependencies]
+regex = "1.11.1"
 
 [dependencies.mlua]
 version = "0.10.3"

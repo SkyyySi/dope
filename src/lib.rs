@@ -17,6 +17,17 @@ use std::{
 	}
 };
 use mlua::prelude::*;
+use regex::Regex;
+
+fn get_indent(indent_width: u8, depth: u32) -> String {
+	if depth == 0 {
+		return String::new();
+	} else if depth == 1 {
+		return String::from(" ").repeat(indent_width as usize);
+	}
+
+	String::new()
+}
 
 fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaResult<String> {
 	let options: LuaTable = match maybe_options {
@@ -26,8 +37,8 @@ fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaR
 
 	let color: bool = options.get::<Option<bool>>("color")?.unwrap_or(false);
 	let multiline: bool = options.get::<Option<bool>>("multiline")?.unwrap_or(false);
-	#[allow(unused_variables)]
-	let indent_width: u8 = options.get::<Option<u8>>("indent_width")?.unwrap_or(4u8);
+	let indent_width: u8 = options.get::<Option<u8>>("indent_width")?.unwrap_or(4);
+	let depth: u32 = options.get::<Option<u32>>("depth")?.unwrap_or(0);
 
 	Ok(match value {
 		LuaValue::Nil => if color {
@@ -96,8 +107,72 @@ fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaR
 		LuaValue::Thread(_inner) => {
 			todo!("dope.repr() for threads")
 		},
-		LuaValue::Table(_inner) => {
-			todo!("dope.repr() for tables")
+		LuaValue::Table(inner) => {
+			//todo!("dope.repr() for tables")
+			if inner.is_empty() {
+				return Ok(String::from("{}"));
+			}
+
+			let mut buffer: String = String::new();
+
+			let outer_indent = get_indent(indent_width, depth);
+			let indent = get_indent(indent_width, depth + 1);
+
+			options.set("depth", depth + 1)?;
+
+			buffer += "{\n";
+
+			let is_name_re: Regex = Regex::new(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+				.map_err(|err| LuaError::RuntimeError(err.to_string()))?;
+
+			// TODO: Sort the keys first
+			let mut keys: Vec<LuaValue> = Vec::new();
+			for pair in inner.pairs::<LuaValue, LuaValue>() {
+				keys.push(pair?.0);
+			}
+			let mut key_reprs: Vec<(LuaValue, String)> = Vec::new();
+			for (k, r) in keys
+				.iter()
+				.map(|k| (k, repr(lua, (k.to_owned(), Some(options.to_owned()))))) {
+				key_reprs.push((k.to_owned(), r?));
+			}
+			key_reprs.sort_by(|a, b| a.1.cmp(&b.1));
+
+			//for pair in inner.pairs::<LuaValue, LuaValue>() {
+			//	let (k, v) = pair?;
+			for (k, key_repr) in key_reprs {
+				let v: LuaValue = inner.get(k.to_owned())?;
+
+				buffer += &indent;
+
+				if let Some((true, s)) = k
+					.as_string()
+					.map(|s| s.to_string_lossy())
+					.map(|s| (is_name_re.is_match(&s), s)) {
+					buffer += &s;
+				} else {
+					buffer.push('[');
+					buffer += &key_repr;
+					buffer.push(']');
+				}
+
+				buffer += " = ";
+				buffer += &repr(lua, (v, Some(options.to_owned())))?;
+				buffer += ",\n";
+
+				/* [
+					&indent,
+					&key_repr,
+					" = ",
+					&value_repr,
+					",\n",
+				].iter().for_each(|part| buffer.push_str(part)); */
+			}
+
+			buffer.push_str(outer_indent.as_str());
+			buffer.push('}');
+
+			buffer
 		},
 		LuaValue::UserData(_inner) => {
 			todo!("dope.repr() for userdata-objects")
