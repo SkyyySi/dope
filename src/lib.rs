@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
 
+mod box_drawing;
 mod macros;
 mod repr;
 
@@ -20,13 +21,19 @@ use mlua::prelude::*;
 use regex::Regex;
 
 fn get_indent(indent_width: u8, depth: u32) -> String {
-	if depth == 0 {
+	if indent_width == 0 || depth == 0 {
 		return String::new();
-	} else if depth == 1 {
-		return String::from(" ").repeat(indent_width as usize);
 	}
 
-	String::new()
+	let mut first = String::from(" ").repeat(indent_width as usize);
+
+	if depth > 1 {
+		let mut rest = String::from("|");
+		rest += &first[0 .. (first.len() - 1)];
+		first += &(rest.repeat(depth as usize))
+	}
+
+	first
 }
 
 fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaResult<String> {
@@ -101,11 +108,13 @@ fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaR
 				LuaError::RuntimeError("".to_string())
 			})?
 		},
-		LuaValue::Function(_inner) => {
-			todo!("dope.repr() for functions")
+		LuaValue::Function(inner) => {
+			//todo!("dope.repr() for functions")
+			inner.into_lua(lua)?.to_string()?
 		},
-		LuaValue::Thread(_inner) => {
-			todo!("dope.repr() for threads")
+		LuaValue::Thread(inner) => {
+			//todo!("dope.repr() for threads")
+			inner.into_lua(lua)?.to_string()?
 		},
 		LuaValue::Table(inner) => {
 			//todo!("dope.repr() for tables")
@@ -174,11 +183,13 @@ fn repr(lua: &Lua, (value, maybe_options): (LuaValue, Option<LuaTable>)) -> LuaR
 
 			buffer
 		},
-		LuaValue::UserData(_inner) => {
-			todo!("dope.repr() for userdata-objects")
+		LuaValue::UserData(inner) => {
+			//todo!("dope.repr() for userdata-objects")
+			inner.into_lua(lua)?.to_string()?
 		},
-		LuaValue::LightUserData(_inner) => {
-			todo!("dope.repr() for lightuserdata-objects")
+		LuaValue::LightUserData(inner) => {
+			//todo!("dope.repr() for lightuserdata-objects")
+			inner.into_lua(lua)?.to_string()?
 		},
 		/* LuaValue::Error(inner) => {
 			todo!("dope.repr() for errors")
@@ -219,6 +230,9 @@ fn print(lua: &Lua, args: LuaMultiValue) -> LuaResult<()> {
 fn dope(lua: &Lua) -> LuaResult<LuaTable> {
 	table!(lua, {
 		repr = lua.create_function(repr)?,
+		get_indent = lua.create_function(|_, (indent_width, depth): (u8, u32)| {
+			Ok(get_indent(indent_width, depth))
+		})?,
 		print = lua.create_function(print)?,
 	}, {
 		__name = "dope",
