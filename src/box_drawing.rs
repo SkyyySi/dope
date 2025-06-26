@@ -43,44 +43,72 @@ use std::collections::HashMap;
 fn lookup_symbol(symbol: &Symbol) -> Option<char> {
 	let mut chars: HashMap<Symbol, char> = HashMap::new();
 
-	use LineStyle::{None as No, Normal as N, Heavy as H, Rounded as R};
+	use LineStyle::{None as X, Normal as N, Heavy as H, Rounded as R};
 
 	macro_rules! insert {
 		( $( ( $up:expr, $down:expr, $left:expr, $right:expr, $segments:literal ) => $c:literal ),* $(,)? ) => {
 			$(chars.insert(
-				Symbol::new($left, $right, $up, $down, NonZeroU8::try_from($segments).unwrap()),
+				Symbol::new($left, $right, $up, $down, $segments),
 				$c,
 			);)*
 		};
 	}
 
 	insert! {
-		(No, No, No, No, 1) => ' ',
-		(No, No, N, N, 1) => '─',
+		(X, X, X, X, 1) => ' ',
+		(X, X, N, N, 1) => '─',
 	};
 
 	chars.get(symbol).map(|c| c.to_owned())
 }
 
+fn f<T>(x: T)
+where
+	T: TryInto<NonZeroU8>,
+	T::Error: std::fmt::Debug,
+{
+	let y: NonZeroU8 = x.try_into().unwrap();
+}
+
 impl Symbol {
-	pub fn new(
+	fn new_with_non_zero_u8(
 			up: LineStyle,
 			down: LineStyle,
 			left: LineStyle,
 			right: LineStyle,
 			segments_count: NonZeroU8,
-			//segments_count: u8,
 	) -> Self {
 		assert!(segments_count.get() <= 4);
-		//assert!(segments_count <= 4);
+
 		Self {
 			up,
 			down,
 			left,
 			right,
 			segments_count,
-			//segments_count: NonZeroU8::try_from(segments_count).unwrap(),
 		}
+	}
+
+	pub fn new<T>(
+			up: LineStyle,
+			down: LineStyle,
+			left: LineStyle,
+			right: LineStyle,
+			segments_count: T,
+	) -> Self
+	where
+		T: TryInto<NonZeroU8>,
+		T::Error: std::fmt::Debug,
+	{
+		let segments_count = segments_count.try_into().unwrap();
+
+		Self::new_with_non_zero_u8(
+			up,
+			down,
+			left,
+			right,
+			segments_count,
+		)
 	}
 
 	fn has_up(&self)    -> bool { self.up.not_none() }

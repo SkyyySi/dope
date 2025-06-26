@@ -28,9 +28,13 @@ fn get_indent(indent_width: u8, depth: u32) -> String {
 	let mut first = String::from(" ").repeat(indent_width as usize);
 
 	if depth > 1 {
-		let mut rest = String::from("|");
-		rest += &first[0 .. (first.len() - 1)];
-		first += &(rest.repeat(depth as usize))
+		let space = first[0 .. (first.len() - 1)].to_owned();
+
+		for i in 2 ..= depth {
+			first = first
+				+ &format!("\x1b[2;3{}m│\x1b[39;22m", i % 7)
+				+ &space;
+		}
 	}
 
 	first
